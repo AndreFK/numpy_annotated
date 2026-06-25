@@ -1,15 +1,18 @@
+"""Smoke tests for numpy_annotated — run with ``uv run python main.py``.
+
+Each block prints OK lines for passing cases and expected rejections.
+Use pytest (``tests/``) for the full photonic/quantum suite.
+"""
 from __future__ import annotations
 
 import numpy as np
 from pydantic import BaseModel, ValidationError
-import json
 
 from numpy_annotated import NDArray, make_model
-from numpy_annotated import serialize_numpy_array
-from numpy_annotated import decode_json_dict
 
 
 def expect_ok(label: str, fn) -> None:
+    """Run fn; print result if no exception."""
     result = fn()
     print(f"OK: {label} -> {result}")
 
@@ -42,8 +45,7 @@ def expect_value_error(label: str, fn) -> None:
 
 
 def main() -> None:
-    
-    # Class definitions for the different models using the make_model factory function
+    # --- Shape + dtype via make_model (image/tensor examples) ---
     RGBImage = make_model("RGBImage", "pixels", (None, None, 3), np.uint8)
     
     RGBImageStrict = make_model(
@@ -51,8 +53,8 @@ def main() -> None:
     )
     
     RGBImageNamed = make_model("RGBImageNamed", "pixels", ("N", "N", 3), np.uint8)
-    
-    # Expectations for the different models
+
+    # Fixed shape, coercion, strict_type, and named "N" dimensions
     expect_ok(
         "4x4 RGB image",
         lambda: RGBImage(pixels=np.zeros((4, 4, 3), dtype=np.uint8)).pixels.shape,
@@ -78,6 +80,7 @@ def main() -> None:
         lambda: RGBImageNamed(pixels=np.zeros((4, 5, 3), dtype=np.uint8)),
     )
 
+    # Named dims repeated across axes: ("N", "M", "N") binds N at indices 0 and 2
     TensorNamed = make_model("TensorNamed", "data", ("N", "M", "N"), np.float64)
     expect_ok(
         "multiple named dims (N, M, N): first and last match",
@@ -88,6 +91,7 @@ def main() -> None:
         lambda: TensorNamed(data=np.zeros((2, 7, 3))),
     )
 
+    # 0-d scalars: () vs (None,) vs ("N",) vs (0,) vs fixed (3,)
     Scalar = make_model("Scalar", "value", (), np.float64)
     Vector = make_model("Vector", "value", (None,), np.float64)
     NamedVector = make_model("NamedVector", "value", ("N",), np.float64)
@@ -114,6 +118,7 @@ def main() -> None:
         lambda: FixedVector(value=np.array(2.0)),
     )
 
+    # Invalid dtype hints fail at model construction time
     expect_type_error(
         "invalid dtype hint: list type",
         lambda: make_model("Bad", "x", (2, 2), list),
@@ -131,7 +136,7 @@ def main() -> None:
         lambda: make_model("Ok", "x", (2, 2), "float64")(x=[[1.0, 2.0], [3.0, 4.0]]).x.dtype,
     )
 
-    # Complex dtypes (quantum: state vectors, unitaries)
+    # Complex dtypes — concrete complex128 vs abstract np.complexfloating
     Operator = make_model("Operator", "matrix", ("N", "N"), np.complex128)
     Unitary = make_model("Unitary", "matrix", ("N", "N"), np.complexfloating)
 
@@ -154,6 +159,7 @@ def main() -> None:
         lambda: Unitary(matrix=np.eye(2, dtype=np.float64)),
     )
 
+    # NDArray[...] on a BaseModel field (vs make_model factory)
     class Vector(BaseModel):
         value: NDArray[(3,), np.int64]
 
@@ -181,8 +187,9 @@ def main() -> None:
         ).pixels.shape,
     )
 
+    # OpenAPI: NDArray fields describe the {dtype, shape, data} wire object
     schema = Vector.model_json_schema()["properties"]["value"]
-    
+
     expect_ok(
         "OpenAPI JSON schema for NDArray field",
         lambda: (

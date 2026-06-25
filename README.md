@@ -125,6 +125,10 @@ notebooks/         # PennyLane integration walkthrough
 
 This package is intentionally small and NumPy-only, with first-class support for **complex JSON round-trip** (list and base64), which those libraries do not handle out of the box.
 
+## Future work
+
+Static type checker integration (e.g. **mypy** and **Pyright**) for `NDArray[shape, dtype]` may be added later — similar to what [numpydantic](https://github.com/p2p-ld/numpydantic) provides today. Today, fields are typed as `np.ndarray` via `Annotated[...]`; runtime validation is fully supported.
+
 ## License
 
 See project metadata in `pyproject.toml`.

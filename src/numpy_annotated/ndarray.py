@@ -54,8 +54,6 @@ class NDArray:
                 config = third
             elif len(item) == 2:
                 shape_part, dtype_part = item
-            elif len(item) == 1:
-                shape_part = item[0]
             else:
                 raise TypeError(
                     "NDArray expects NDArray[shape, dtype], NDArray[shape, dtype, config], "
